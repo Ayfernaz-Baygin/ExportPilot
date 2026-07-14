@@ -7,6 +7,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import com.exportpilot.productcode.dto.ProductCodeResponse;
+import com.exportpilot.productcode.service.ProductCodeService;
 
 import java.util.List;
 
@@ -15,10 +17,15 @@ import java.util.List;
 public class ProductController {
 
     private final ProductService productService;
+    private final ProductCodeService productCodeService;
 
-    public ProductController(ProductService productService) {
-        this.productService = productService;
-    }
+    public ProductController(
+        ProductService productService,
+        ProductCodeService productCodeService
+) {
+    this.productService = productService;
+    this.productCodeService = productCodeService;
+}
 
     @GetMapping
     public ResponseEntity<List<ProductResponse>> getActiveProducts() {
@@ -31,4 +38,13 @@ public class ProductController {
     ) {
         return ResponseEntity.ok(productService.getProductById(id));
     }
+
+    @GetMapping("/{id}/codes")
+public ResponseEntity<List<ProductCodeResponse>> getProductCodes(
+        @PathVariable Long id
+) {
+    return ResponseEntity.ok(
+            productCodeService.getCodesByProductId(id)
+    );
+}
 }
