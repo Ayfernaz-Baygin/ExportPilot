@@ -6,6 +6,7 @@ import com.exportpilot.product.mapper.ProductMapper;
 import com.exportpilot.product.repository.ProductRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.exportpilot.common.exception.ResourceNotFoundException;
 
 import java.util.List;
 
@@ -35,10 +36,10 @@ public class ProductService {
     public ProductResponse getProductById(Long id) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "Product not found with id: " + id
-                        )
-                );
+        new ResourceNotFoundException(
+                "Product not found with id: " + id
+        )
+);
 
         return productMapper.toResponse(product);
     }
