@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import com.exportpilot.analysisresult.service.AnalysisCountryResultGenerator;
 
 import java.util.List;
 
@@ -26,10 +27,15 @@ import java.util.List;
 public class AnalysisController {
 
     private final AnalysisService analysisService;
+    private final AnalysisCountryResultGenerator resultGenerator;
 
-    public AnalysisController(AnalysisService analysisService) {
-        this.analysisService = analysisService;
-    }
+    public AnalysisController(
+        AnalysisService analysisService,
+        AnalysisCountryResultGenerator resultGenerator
+) {
+    this.analysisService = analysisService;
+    this.resultGenerator = resultGenerator;
+}
 
     @Operation(
             summary = "Create export analysis",
@@ -70,4 +76,17 @@ public class AnalysisController {
                 analysisService.getAnalysisById(id)
         );
     }
+
+    @Operation(
+        summary = "Generate analysis results",
+        description = "Calculates and stores country-level results for an existing analysis."
+)
+@PostMapping("/{analysisId}/generate-results")
+public ResponseEntity<Void> generateResults(
+        @PathVariable Long analysisId
+) {
+    resultGenerator.generateResults(analysisId);
+
+    return ResponseEntity.noContent().build();
+}
 }

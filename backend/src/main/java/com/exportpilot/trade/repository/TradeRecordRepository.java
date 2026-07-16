@@ -29,4 +29,12 @@ public interface TradeRecordRepository
             Integer startYear,
             Integer endYear
     );
+
+    List<TradeRecord>
+    findAllByProductCodeIdAndTradeFlowAndTradeYearBetweenOrderByTradeYearAsc(
+            Long productCodeId,
+            TradeFlow tradeFlow,
+            Integer startYear,
+            Integer endYear
+    );
 }
