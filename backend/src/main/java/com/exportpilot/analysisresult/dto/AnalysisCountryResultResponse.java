@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
 public record AnalysisCountryResultResponse(
+
         Long id,
 
         Long analysisId,
@@ -26,12 +27,9 @@ public record AnalysisCountryResultResponse(
         BigDecimal currencyStabilityScore,
         BigDecimal logisticsSuitabilityScore,
         BigDecimal tariffSuitabilityScore,
-        BigDecimal dataCompleteness,
 
         Integer firstYear,
         Integer lastYear,
-        Integer availableYearCount,
-
         BigDecimal firstYearTradeValueUsd,
         BigDecimal lastYearTradeValueUsd,
         BigDecimal totalTradeValueUsd,
@@ -39,6 +37,9 @@ public record AnalysisCountryResultResponse(
         BigDecimal absoluteGrowthUsd,
         BigDecimal growthRatePercent,
         BigDecimal cagrPercent,
+
+        Integer availableYearCount,
+        BigDecimal dataCompleteness,
 
         OffsetDateTime calculatedAt,
         OffsetDateTime createdAt

@@ -3,6 +3,7 @@ package com.exportpilot.trade.dto;
 import com.exportpilot.productcode.entity.ProductCodeType;
 import com.exportpilot.trade.entity.TradeDataStatus;
 import com.exportpilot.trade.entity.TradeFlow;
+import com.exportpilot.trade.entity.TradePartnerScope;
 import com.exportpilot.trade.entity.TradeRevisionStatus;
 
 import java.math.BigDecimal;
@@ -16,6 +17,8 @@ public record TradeRecordResponse(
         Long reporterCountryId,
         String reporterIso2Code,
         String reporterCountryName,
+
+        TradePartnerScope partnerScope,
 
         Long partnerCountryId,
         String partnerIso2Code,

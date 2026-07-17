@@ -1,6 +1,7 @@
 package com.exportpilot.trade.repository;
 
 import com.exportpilot.trade.entity.TradeFlow;
+import com.exportpilot.trade.entity.TradePartnerScope;
 import com.exportpilot.trade.entity.TradeRecord;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -33,6 +34,25 @@ public interface TradeRecordRepository
     List<TradeRecord>
     findAllByProductCodeIdAndTradeFlowAndTradeYearBetweenOrderByTradeYearAsc(
             Long productCodeId,
+            TradeFlow tradeFlow,
+            Integer startYear,
+            Integer endYear
+    );
+
+    List<TradeRecord>
+    findAllByProductCodeIdAndPartnerScopeAndTradeFlowAndTradeYearBetweenOrderByTradeYearAsc(
+            Long productCodeId,
+            TradePartnerScope partnerScope,
+            TradeFlow tradeFlow,
+            Integer startYear,
+            Integer endYear
+    );
+
+    List<TradeRecord>
+    findAllByProductCodeIdAndPartnerScopeAndPartnerCountryIso2CodeAndTradeFlowAndTradeYearBetweenOrderByTradeYearAsc(
+            Long productCodeId,
+            TradePartnerScope partnerScope,
+            String partnerCountryIso2Code,
             TradeFlow tradeFlow,
             Integer startYear,
             Integer endYear

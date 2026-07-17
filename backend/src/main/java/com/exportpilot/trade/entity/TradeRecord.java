@@ -51,10 +51,19 @@ public class TradeRecord {
     )
     private Country reporterCountry;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(
+            name = "partner_scope",
+            nullable = false,
+            length = 30
+    )
+    private TradePartnerScope partnerScope =
+            TradePartnerScope.SPECIFIC_COUNTRY;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(
-            name = "partner_country_id",
-            nullable = false
+            name = "partner_country_id"
     )
     private Country partnerCountry;
 
@@ -166,6 +175,29 @@ public class TradeRecord {
 
         if (dataStatus == null) {
             dataStatus = TradeDataStatus.AVAILABLE;
+        }
+
+        if (partnerScope == null) {
+            partnerScope =
+                    TradePartnerScope.SPECIFIC_COUNTRY;
+        }
+
+        validatePartnerConsistency();
+    }
+
+    private void validatePartnerConsistency() {
+        if (partnerScope == TradePartnerScope.SPECIFIC_COUNTRY
+                && partnerCountry == null) {
+            throw new IllegalStateException(
+                    "Partner country is required for SPECIFIC_COUNTRY records."
+            );
+        }
+
+        if (partnerScope == TradePartnerScope.WORLD_TOTAL
+                && partnerCountry != null) {
+            throw new IllegalStateException(
+                    "Partner country must be null for WORLD_TOTAL records."
+            );
         }
     }
 }
