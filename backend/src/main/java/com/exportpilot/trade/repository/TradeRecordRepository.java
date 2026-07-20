@@ -57,4 +57,13 @@ public interface TradeRecordRepository
             Integer startYear,
             Integer endYear
     );
+
+    List<TradeRecord>
+    findAllByProductCodeIdAndPartnerScopeAndTradeFlowAndTradeYearBetweenAndPartnerCountryIsNotNullOrderByTradeYearAsc(
+            Long productCodeId,
+            TradePartnerScope partnerScope,
+            TradeFlow tradeFlow,
+            Integer startYear,
+            Integer endYear
+    );
 }

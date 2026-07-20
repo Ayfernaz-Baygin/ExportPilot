@@ -28,6 +28,15 @@ public record AnalysisCountryResultResponse(
         BigDecimal logisticsSuitabilityScore,
         BigDecimal tariffSuitabilityScore,
 
+        Integer supplierCount,
+        BigDecimal supplierConcentrationHhi,
+        Integer turkeySupplierRank,
+        BigDecimal turkeyMarketSharePercent,
+        BigDecimal leaderMarketSharePercent,
+        BigDecimal distanceToLeaderPercent,
+        BigDecimal turkeyUnitValueUsdPerKg,
+        BigDecimal marketAverageUnitValueUsdPerKg,
+
         Integer firstYear,
         Integer lastYear,
         BigDecimal firstYearTradeValueUsd,

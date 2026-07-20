@@ -45,6 +45,12 @@ public enum EconomicIndicatorType {
             "NE.TRD.GNFS.ZS",
             "Trade as Percentage of GDP",
             "PERCENT_OF_GDP"
+    ),
+
+    EXCHANGE_RATE(
+            "PA.NUS.FCRF",
+            "Official Exchange Rate",
+            "LOCAL_CURRENCY_PER_USD"
     );
 
     private final String worldBankCode;

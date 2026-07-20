@@ -3,6 +3,8 @@ package com.exportpilot.analysisresult.service;
 import com.exportpilot.analysis.repository.AnalysisRepository;
 import com.exportpilot.analysisresult.dto.AnalysisCountryResultResponse;
 import com.exportpilot.analysisresult.entity.AnalysisCountryResult;
+import com.exportpilot.analysisresult.interpretation.CountryAnalysisInterpretation;
+import com.exportpilot.analysisresult.interpretation.CountryAnalysisInterpreter;
 import com.exportpilot.analysisresult.mapper.AnalysisCountryResultMapper;
 import com.exportpilot.analysisresult.repository.AnalysisCountryResultRepository;
 import com.exportpilot.common.exception.ResourceNotFoundException;
@@ -17,15 +19,18 @@ public class AnalysisCountryResultService {
     private final AnalysisCountryResultRepository resultRepository;
     private final AnalysisCountryResultMapper resultMapper;
     private final AnalysisRepository analysisRepository;
+    private final CountryAnalysisInterpreter countryAnalysisInterpreter;
 
     public AnalysisCountryResultService(
             AnalysisCountryResultRepository resultRepository,
             AnalysisCountryResultMapper resultMapper,
-            AnalysisRepository analysisRepository
+            AnalysisRepository analysisRepository,
+            CountryAnalysisInterpreter countryAnalysisInterpreter
     ) {
         this.resultRepository = resultRepository;
         this.resultMapper = resultMapper;
         this.analysisRepository = analysisRepository;
+        this.countryAnalysisInterpreter = countryAnalysisInterpreter;
     }
 
     @Transactional(readOnly = true)
@@ -44,13 +49,7 @@ public class AnalysisCountryResultService {
 
     @Transactional(readOnly = true)
     public AnalysisCountryResultResponse getResultById(Long id) {
-        AnalysisCountryResult result = resultRepository.findById(id)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Analysis country result not found with id: "
-                                        + id
-                        )
-                );
+        AnalysisCountryResult result = findResultById(id);
 
         return resultMapper.toResponse(result);
     }
@@ -77,6 +76,38 @@ public class AnalysisCountryResultService {
                 );
 
         return resultMapper.toResponse(result);
+    }
+
+    @Transactional(readOnly = true)
+    public CountryAnalysisInterpretation getInterpretationByResultId(
+            Long resultId
+    ) {
+        AnalysisCountryResult result = findResultById(resultId);
+
+        return countryAnalysisInterpreter.interpret(result);
+    }
+
+    @Transactional(readOnly = true)
+public List<CountryAnalysisInterpretation> getInterpretationsByAnalysisId(
+        Long analysisId
+) {
+    ensureAnalysisExists(analysisId);
+
+    return resultRepository
+            .findAllByAnalysisIdOrderByRankPositionAsc(analysisId)
+            .stream()
+            .map(countryAnalysisInterpreter::interpret)
+            .toList();
+}
+
+    private AnalysisCountryResult findResultById(Long id) {
+        return resultRepository.findById(id)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Analysis country result not found with id: "
+                                        + id
+                        )
+                );
     }
 
     private void ensureAnalysisExists(Long analysisId) {

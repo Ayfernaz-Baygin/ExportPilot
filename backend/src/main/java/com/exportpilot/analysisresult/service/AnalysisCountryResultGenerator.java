@@ -3,6 +3,20 @@ package com.exportpilot.analysisresult.service;
 import com.exportpilot.analysis.entity.Analysis;
 import com.exportpilot.analysis.entity.AnalysisStatus;
 import com.exportpilot.analysis.repository.AnalysisRepository;
+import com.exportpilot.analysisresult.engine.CompetitiveAccessibilityCalculator;
+import com.exportpilot.analysisresult.engine.CompetitiveAccessibilityMetrics;
+import com.exportpilot.analysisresult.engine.CurrencyStabilityRawMetrics;
+import com.exportpilot.analysisresult.engine.CurrencyStabilityRawMetricsCalculator;
+import com.exportpilot.analysisresult.engine.CurrencyStabilityCalculator;
+import com.exportpilot.analysisresult.engine.CurrencyStabilityMetrics;
+import com.exportpilot.analysisresult.engine.LogisticsDataProvider;
+import com.exportpilot.analysisresult.engine.LogisticsRawData;
+import com.exportpilot.analysisresult.engine.LogisticsSuitabilityCalculator;
+import com.exportpilot.analysisresult.engine.LogisticsSuitabilityMetrics;
+import com.exportpilot.analysisresult.engine.TariffDataProvider;
+import com.exportpilot.analysisresult.engine.TariffRawData;
+import com.exportpilot.analysisresult.engine.TariffSuitabilityCalculator;
+import com.exportpilot.analysisresult.engine.TariffSuitabilityMetrics;
 import com.exportpilot.analysisresult.engine.MacroeconomicMetrics;
 import com.exportpilot.analysisresult.engine.MacroeconomicRawMetrics;
 import com.exportpilot.analysisresult.engine.MacroeconomicRawMetricsCalculator;
@@ -56,19 +70,31 @@ public class AnalysisCountryResultGenerator {
      * Tariff Suitability            %5
      */
     private static final BigDecimal IMPORT_MARKET_SIZE_WEIGHT =
-            new BigDecimal("0.30");
+            new BigDecimal("0.20");
 
     private static final BigDecimal IMPORT_GROWTH_WEIGHT =
             new BigDecimal("0.20");
 
     private static final BigDecimal TURKEY_EXPORT_PERFORMANCE_WEIGHT =
-            new BigDecimal("0.20");
+            new BigDecimal("0.15");
 
     private static final BigDecimal MARKET_SHARE_OPPORTUNITY_WEIGHT =
-            new BigDecimal("0.15");
+            new BigDecimal("0.10");
+
+    private static final BigDecimal COMPETITIVE_ACCESSIBILITY_WEIGHT =
+            new BigDecimal("0.10");
 
     private static final BigDecimal MACROECONOMIC_STABILITY_WEIGHT =
-            new BigDecimal("0.15");
+            new BigDecimal("0.10");
+
+    private static final BigDecimal CURRENCY_STABILITY_WEIGHT =
+            new BigDecimal("0.05");
+
+    private static final BigDecimal LOGISTICS_SUITABILITY_WEIGHT =
+            new BigDecimal("0.05");
+
+    private static final BigDecimal TARIFF_SUITABILITY_WEIGHT =
+            new BigDecimal("0.05");
 
     private static final BigDecimal MAX_SCORE =
             new BigDecimal("100.00");
@@ -85,6 +111,9 @@ public class AnalysisCountryResultGenerator {
 
     private final TradeMetricsCalculator metricsCalculator;
 
+    private final CompetitiveAccessibilityCalculator
+            competitiveAccessibilityCalculator;
+
     private final EconomicIndicatorRepository economicIndicatorRepository;
 
     private final MacroeconomicRawMetricsCalculator
@@ -93,27 +122,67 @@ public class AnalysisCountryResultGenerator {
     private final MacroeconomicStabilityCalculator
             macroeconomicStabilityCalculator;
 
+    private final CurrencyStabilityRawMetricsCalculator
+            currencyStabilityRawMetricsCalculator;
+
+    private final CurrencyStabilityCalculator
+            currencyStabilityCalculator;
+
+    private final LogisticsDataProvider logisticsDataProvider;
+
+    private final LogisticsSuitabilityCalculator
+            logisticsSuitabilityCalculator;
+
+    private final TariffDataProvider tariffDataProvider;
+
+    private final TariffSuitabilityCalculator
+            tariffSuitabilityCalculator;
+
     public AnalysisCountryResultGenerator(
             AnalysisRepository analysisRepository,
             AnalysisCountryResultRepository resultRepository,
             TradeRecordRepository tradeRecordRepository,
             TradeMetricsCalculator metricsCalculator,
+            CompetitiveAccessibilityCalculator
+                    competitiveAccessibilityCalculator,
             EconomicIndicatorRepository economicIndicatorRepository,
             MacroeconomicRawMetricsCalculator
                     macroeconomicRawMetricsCalculator,
             MacroeconomicStabilityCalculator
-                    macroeconomicStabilityCalculator
+                    macroeconomicStabilityCalculator,
+            CurrencyStabilityRawMetricsCalculator
+                    currencyStabilityRawMetricsCalculator,
+            CurrencyStabilityCalculator
+                    currencyStabilityCalculator,
+            LogisticsDataProvider logisticsDataProvider,
+            LogisticsSuitabilityCalculator
+                    logisticsSuitabilityCalculator,
+            TariffDataProvider tariffDataProvider,
+            TariffSuitabilityCalculator
+                    tariffSuitabilityCalculator
     ) {
         this.analysisRepository = analysisRepository;
         this.resultRepository = resultRepository;
         this.tradeRecordRepository = tradeRecordRepository;
         this.metricsCalculator = metricsCalculator;
+        this.competitiveAccessibilityCalculator =
+                competitiveAccessibilityCalculator;
         this.economicIndicatorRepository =
                 economicIndicatorRepository;
         this.macroeconomicRawMetricsCalculator =
                 macroeconomicRawMetricsCalculator;
         this.macroeconomicStabilityCalculator =
                 macroeconomicStabilityCalculator;
+        this.currencyStabilityRawMetricsCalculator =
+                currencyStabilityRawMetricsCalculator;
+        this.currencyStabilityCalculator =
+                currencyStabilityCalculator;
+        this.logisticsDataProvider = logisticsDataProvider;
+        this.logisticsSuitabilityCalculator =
+                logisticsSuitabilityCalculator;
+        this.tariffDataProvider = tariffDataProvider;
+        this.tariffSuitabilityCalculator =
+                tariffSuitabilityCalculator;
     }
 
     @Transactional
@@ -142,6 +211,9 @@ public class AnalysisCountryResultGenerator {
             List<TradeRecord> turkeyRecords =
                     getTurkeyPartnerRecords(analysis);
 
+            List<TradeRecord> supplierRecords =
+                    getSupplierRecords(analysis);
+
             if (worldTotalRecords.isEmpty()) {
                 throw new BusinessRuleException(
                         "No WORLD_TOTAL trade records were found "
@@ -154,7 +226,8 @@ public class AnalysisCountryResultGenerator {
                     createCountryCandidates(
                             analysis,
                             worldTotalRecords,
-                            turkeyRecords
+                            turkeyRecords,
+                            supplierRecords
                     );
 
             List<CountryCandidate> candidatesWithEconomicData =
@@ -225,6 +298,25 @@ public class AnalysisCountryResultGenerator {
         );
     }
 
+    private List<TradeRecord> getSupplierRecords(
+            Analysis analysis
+    ) {
+        List<TradeRecord> records =
+                tradeRecordRepository
+                        .findAllByProductCodeIdAndPartnerScopeAndTradeFlowAndTradeYearBetweenAndPartnerCountryIsNotNullOrderByTradeYearAsc(
+                                analysis.getProductCode().getId(),
+                                TradePartnerScope.SPECIFIC_COUNTRY,
+                                TradeFlow.IMPORT,
+                                analysis.getStartYear(),
+                                analysis.getEndYear()
+                        );
+
+        return filterByTargetRegion(
+                records,
+                analysis.getTargetRegion()
+        );
+    }
+
     private List<TradeRecord> filterByTargetRegion(
             List<TradeRecord> records,
             String targetRegion
@@ -256,7 +348,8 @@ public class AnalysisCountryResultGenerator {
     private List<CountryCandidate> createCountryCandidates(
             Analysis analysis,
             List<TradeRecord> worldTotalRecords,
-            List<TradeRecord> turkeyRecords
+            List<TradeRecord> turkeyRecords,
+            List<TradeRecord> supplierRecords
     ) {
         Map<Long, List<TradeRecord>> worldRecordsByCountryId =
                 worldTotalRecords.stream()
@@ -272,6 +365,18 @@ public class AnalysisCountryResultGenerator {
 
         Map<Long, List<TradeRecord>> turkeyRecordsByCountryId =
                 turkeyRecords.stream()
+                        .collect(
+                                Collectors.groupingBy(
+                                        record ->
+                                                record.getReporterCountry()
+                                                        .getId(),
+                                        LinkedHashMap::new,
+                                        Collectors.toList()
+                                )
+                        );
+
+        Map<Long, List<TradeRecord>> supplierRecordsByCountryId =
+                supplierRecords.stream()
                         .collect(
                                 Collectors.groupingBy(
                                         record ->
@@ -316,11 +421,26 @@ public class AnalysisCountryResultGenerator {
                                     countryTurkeyRecords
                             );
 
+                    List<TradeRecord> countrySupplierRecords =
+                            supplierRecordsByCountryId.getOrDefault(
+                                    entry.getKey(),
+                                    List.of()
+                            );
+
+                    CompetitiveAccessibilityMetrics
+                            competitiveAccessibilityMetrics =
+                            competitiveAccessibilityCalculator.calculate(
+                                    countrySupplierRecords,
+                                    analysis.getEndYear()
+                            );
+
                     return new CountryCandidate(
                             country,
                             worldMetrics,
                             turkeyMetrics,
                             turkeyMarketSharePercent,
+                            competitiveAccessibilityMetrics,
+                            null,
                             null
                     );
                 })
@@ -384,12 +504,24 @@ public class AnalysisCountryResultGenerator {
                                             analysis.getEndYear()
                                     );
 
+                    CurrencyStabilityRawMetrics
+                            currencyStabilityRawMetrics =
+                            currencyStabilityRawMetricsCalculator
+                                    .calculate(
+                                            countryId,
+                                            countryIndicators,
+                                            analysis.getStartYear(),
+                                            analysis.getEndYear()
+                                    );
+
                     return new CountryCandidate(
                             candidate.country(),
                             candidate.worldMetrics(),
                             candidate.turkeyMetrics(),
                             candidate.turkeyMarketSharePercent(),
-                            rawMetrics
+                            candidate.competitiveAccessibilityMetrics(),
+                            rawMetrics,
+                            currencyStabilityRawMetrics
                     );
                 })
                 .toList();
@@ -503,6 +635,18 @@ public class AnalysisCountryResultGenerator {
                         )
                         .toList();
 
+        List<CurrencyStabilityRawMetrics>
+                allCurrencyStabilityRawMetrics =
+                candidates.stream()
+                        .map(
+                                CountryCandidate::
+                                        currencyStabilityRawMetrics
+                        )
+                        .filter(value ->
+                                value != null
+                        )
+                        .toList();
+
         BigDecimal maximumWorldTotalTradeValue =
                 getMaximumValue(
                         candidates,
@@ -511,7 +655,7 @@ public class AnalysisCountryResultGenerator {
                                         .totalTradeValueUsd()
                 );
 
-        BigDecimal maximumPositiveWorldCagr =
+        List<BigDecimal> worldCagrValues =
                 candidates.stream()
                         .map(candidate ->
                                 candidate.worldMetrics()
@@ -520,9 +664,15 @@ public class AnalysisCountryResultGenerator {
                         .filter(value ->
                                 value != null
                         )
-                        .filter(value ->
-                                value.compareTo(BigDecimal.ZERO) > 0
-                        )
+                        .toList();
+
+        BigDecimal minimumWorldCagr =
+                worldCagrValues.stream()
+                        .min(BigDecimal::compareTo)
+                        .orElse(BigDecimal.ZERO);
+
+        BigDecimal maximumWorldCagr =
+                worldCagrValues.stream()
                         .max(BigDecimal::compareTo)
                         .orElse(BigDecimal.ZERO);
 
@@ -547,8 +697,10 @@ public class AnalysisCountryResultGenerator {
                                 scoreCandidate(
                                         candidate,
                                         allMacroeconomicRawMetrics,
+                                        allCurrencyStabilityRawMetrics,
                                         maximumWorldTotalTradeValue,
-                                        maximumPositiveWorldCagr,
+                                        minimumWorldCagr,
+                                        maximumWorldCagr,
                                         maximumTurkeyExportPerformanceMetric,
                                         maximumTurkeyMarketShare
                                 )
@@ -606,14 +758,68 @@ public class AnalysisCountryResultGenerator {
                                     candidate
                                             .marketShareOpportunityScore()
                             )
-                            .competitiveAccessibilityScore(null)
+                            .competitiveAccessibilityScore(
+                                    candidate
+                                            .competitiveAccessibilityMetrics()
+                                            .competitiveAccessibilityScore()
+                            )
+                            .supplierCount(
+                                    candidate
+                                            .competitiveAccessibilityMetrics()
+                                            .supplierCount()
+                            )
+                            .supplierConcentrationHhi(
+                                    candidate
+                                            .competitiveAccessibilityMetrics()
+                                            .supplierConcentrationHhi()
+                            )
+                            .turkeySupplierRank(
+                                    candidate
+                                            .competitiveAccessibilityMetrics()
+                                            .turkeySupplierRank()
+                            )
+                            .turkeyMarketSharePercent(
+                                    candidate
+                                            .competitiveAccessibilityMetrics()
+                                            .turkeyMarketSharePercent()
+                            )
+                            .leaderMarketSharePercent(
+                                    candidate
+                                            .competitiveAccessibilityMetrics()
+                                            .leaderMarketSharePercent()
+                            )
+                            .distanceToLeaderPercent(
+                                    candidate
+                                            .competitiveAccessibilityMetrics()
+                                            .distanceToLeaderPercent()
+                            )
+                            .turkeyUnitValueUsdPerKg(
+                                    candidate
+                                            .competitiveAccessibilityMetrics()
+                                            .turkeyUnitValueUsdPerKg()
+                            )
+                            .marketAverageUnitValueUsdPerKg(
+                                    candidate
+                                            .competitiveAccessibilityMetrics()
+                                            .marketAverageUnitValueUsdPerKg()
+                            )
                             .macroeconomicStabilityScore(
                                     candidate
                                             .macroeconomicStabilityScore()
                             )
-                            .currencyStabilityScore(null)
-                            .logisticsSuitabilityScore(null)
-                            .tariffSuitabilityScore(null)
+                            .currencyStabilityScore(
+                                    candidate.currencyStabilityScore()
+                            )
+                            .logisticsSuitabilityScore(
+                                    candidate
+                                            .logisticsSuitabilityMetrics()
+                                            .logisticsSuitabilityScore()
+                            )
+                            .tariffSuitabilityScore(
+                                    candidate
+                                            .tariffSuitabilityMetrics()
+                                            .tariffSuitabilityScore()
+                            )
                             .dataCompleteness(
                                     calculateDataCompleteness(
                                             analysis,
@@ -701,8 +907,11 @@ public class AnalysisCountryResultGenerator {
             CountryCandidate candidate,
             List<MacroeconomicRawMetrics>
                     allMacroeconomicRawMetrics,
+            List<CurrencyStabilityRawMetrics>
+                    allCurrencyStabilityRawMetrics,
             BigDecimal maximumWorldTotalTradeValue,
-            BigDecimal maximumPositiveWorldCagr,
+            BigDecimal minimumWorldCagr,
+            BigDecimal maximumWorldCagr,
             BigDecimal maximumTurkeyExportPerformanceMetric,
             BigDecimal maximumTurkeyMarketShare
     ) {
@@ -713,17 +922,11 @@ public class AnalysisCountryResultGenerator {
                         maximumWorldTotalTradeValue
                 );
 
-        BigDecimal positiveWorldCagr =
-                candidate.worldMetrics().cagrPercent() == null
-                        ? BigDecimal.ZERO
-                        : candidate.worldMetrics()
-                                .cagrPercent()
-                                .max(BigDecimal.ZERO);
-
         BigDecimal importGrowthScore =
-                normalizeScore(
-                        positiveWorldCagr,
-                        maximumPositiveWorldCagr
+                normalizeMinMaxScore(
+                        candidate.worldMetrics().cagrPercent(),
+                        minimumWorldCagr,
+                        maximumWorldCagr
                 );
 
         BigDecimal turkeyExportPerformanceMetric =
@@ -739,11 +942,23 @@ public class AnalysisCountryResultGenerator {
                                 maximumTurkeyExportPerformanceMetric
                         );
 
-        BigDecimal marketShareOpportunityScore =
-                calculateMarketShareOpportunityScore(
+        BigDecimal lowTurkeyMarketShareScore =
+                calculateLowTurkeyMarketShareScore(
                         candidate.turkeyMarketSharePercent(),
                         maximumTurkeyMarketShare
                 );
+
+        BigDecimal marketShareOpportunityScore =
+                calculateMarketShareOpportunityScore(
+                        importMarketSizeScore,
+                        importGrowthScore,
+                        lowTurkeyMarketShareScore,
+                        turkeyExportPerformanceScore
+                );
+
+        BigDecimal competitiveAccessibilityScore =
+                candidate.competitiveAccessibilityMetrics()
+                        .competitiveAccessibilityScore();
 
         MacroeconomicMetrics macroeconomicMetrics =
                 macroeconomicStabilityCalculator.calculate(
@@ -755,13 +970,60 @@ public class AnalysisCountryResultGenerator {
                 macroeconomicMetrics
                         .macroeconomicStabilityScore();
 
+        CurrencyStabilityMetrics currencyStabilityMetrics =
+                currencyStabilityCalculator.calculate(
+                        candidate.currencyStabilityRawMetrics(),
+                        allCurrencyStabilityRawMetrics
+                );
+
+        BigDecimal currencyStabilityScore =
+                currencyStabilityMetrics
+                        .currencyStabilityScore();
+
+        LogisticsRawData logisticsRawData =
+                logisticsDataProvider.getByCountryIso2Code(
+                        candidate.country().getIso2Code()
+                );
+
+        LogisticsSuitabilityMetrics logisticsSuitabilityMetrics =
+                logisticsSuitabilityCalculator.calculate(
+                        logisticsRawData.approximateDistanceKm(),
+                        logisticsRawData.averageTransitDays(),
+                        logisticsRawData.transportMode(),
+                        logisticsRawData.portConnectivityIndex()
+                );
+
+        BigDecimal logisticsSuitabilityScore =
+                logisticsSuitabilityMetrics
+                        .logisticsSuitabilityScore();
+
+        TariffRawData tariffRawData =
+                tariffDataProvider.getByCountryIso2Code(
+                        candidate.country().getIso2Code()
+                );
+
+        TariffSuitabilityMetrics tariffSuitabilityMetrics =
+                tariffSuitabilityCalculator.calculate(
+                        tariffRawData.appliedTariffRatePercent(),
+                        tariffRawData.preferentialTradeAgreement(),
+                        tariffRawData.nonTariffBarrierIndex()
+                );
+
+        BigDecimal tariffSuitabilityScore =
+                tariffSuitabilityMetrics
+                        .tariffSuitabilityScore();
+
         BigDecimal overallScore =
                 calculateOverallScore(
                         importMarketSizeScore,
                         importGrowthScore,
                         turkeyExportPerformanceScore,
                         marketShareOpportunityScore,
-                        macroeconomicStabilityScore
+                        competitiveAccessibilityScore,
+                        macroeconomicStabilityScore,
+                        currencyStabilityScore,
+                        logisticsSuitabilityScore,
+                        tariffSuitabilityScore
                 );
 
         return new ScoredCandidate(
@@ -769,11 +1031,16 @@ public class AnalysisCountryResultGenerator {
                 candidate.worldMetrics(),
                 candidate.turkeyMetrics(),
                 candidate.turkeyMarketSharePercent(),
+                candidate.competitiveAccessibilityMetrics(),
                 importMarketSizeScore,
                 importGrowthScore,
                 turkeyExportPerformanceScore,
                 marketShareOpportunityScore,
+                competitiveAccessibilityScore,
                 macroeconomicStabilityScore,
+                currencyStabilityScore,
+                logisticsSuitabilityMetrics,
+                tariffSuitabilityMetrics,
                 macroeconomicMetrics.dataCompleteness(),
                 overallScore
         );
@@ -784,7 +1051,11 @@ public class AnalysisCountryResultGenerator {
             BigDecimal importGrowthScore,
             BigDecimal turkeyExportPerformanceScore,
             BigDecimal marketShareOpportunityScore,
-            BigDecimal macroeconomicStabilityScore
+            BigDecimal competitiveAccessibilityScore,
+            BigDecimal macroeconomicStabilityScore,
+            BigDecimal currencyStabilityScore,
+            BigDecimal logisticsSuitabilityScore,
+            BigDecimal tariffSuitabilityScore
     ) {
         BigDecimal weightedScoreSum =
                 BigDecimal.ZERO;
@@ -848,6 +1119,20 @@ public class AnalysisCountryResultGenerator {
                     );
         }
 
+        if (competitiveAccessibilityScore != null) {
+            weightedScoreSum =
+                    weightedScoreSum.add(
+                            competitiveAccessibilityScore.multiply(
+                                    COMPETITIVE_ACCESSIBILITY_WEIGHT
+                            )
+                    );
+
+            availableWeightSum =
+                    availableWeightSum.add(
+                            COMPETITIVE_ACCESSIBILITY_WEIGHT
+                    );
+        }
+
         if (macroeconomicStabilityScore != null) {
             weightedScoreSum =
                     weightedScoreSum.add(
@@ -859,6 +1144,48 @@ public class AnalysisCountryResultGenerator {
             availableWeightSum =
                     availableWeightSum.add(
                             MACROECONOMIC_STABILITY_WEIGHT
+                    );
+        }
+
+        if (currencyStabilityScore != null) {
+            weightedScoreSum =
+                    weightedScoreSum.add(
+                            currencyStabilityScore.multiply(
+                                    CURRENCY_STABILITY_WEIGHT
+                            )
+                    );
+
+            availableWeightSum =
+                    availableWeightSum.add(
+                            CURRENCY_STABILITY_WEIGHT
+                    );
+        }
+
+        if (logisticsSuitabilityScore != null) {
+            weightedScoreSum =
+                    weightedScoreSum.add(
+                            logisticsSuitabilityScore.multiply(
+                                    LOGISTICS_SUITABILITY_WEIGHT
+                            )
+                    );
+
+            availableWeightSum =
+                    availableWeightSum.add(
+                            LOGISTICS_SUITABILITY_WEIGHT
+                    );
+        }
+
+        if (tariffSuitabilityScore != null) {
+            weightedScoreSum =
+                    weightedScoreSum.add(
+                            tariffSuitabilityScore.multiply(
+                                    TARIFF_SUITABILITY_WEIGHT
+                            )
+                    );
+
+            availableWeightSum =
+                    availableWeightSum.add(
+                            TARIFF_SUITABILITY_WEIGHT
                     );
         }
 
@@ -887,10 +1214,14 @@ public class AnalysisCountryResultGenerator {
                 );
     }
 
-    private BigDecimal calculateMarketShareOpportunityScore(
+    private BigDecimal calculateLowTurkeyMarketShareScore(
             BigDecimal turkeyMarketSharePercent,
             BigDecimal maximumTurkeyMarketShare
     ) {
+        if (turkeyMarketSharePercent == null) {
+            return null;
+        }
+
         if (
                 maximumTurkeyMarketShare == null
                         || maximumTurkeyMarketShare.compareTo(
@@ -900,15 +1231,80 @@ public class AnalysisCountryResultGenerator {
             return MAX_SCORE;
         }
 
-        BigDecimal normalizedCurrentShare =
+        BigDecimal normalizedTurkeyShare =
                 normalizeScore(
                         turkeyMarketSharePercent,
                         maximumTurkeyMarketShare
                 );
 
         return MAX_SCORE
-                .subtract(normalizedCurrentShare)
+                .subtract(normalizedTurkeyShare)
                 .max(BigDecimal.ZERO)
+                .min(MAX_SCORE)
+                .setScale(
+                        SCORE_SCALE,
+                        RoundingMode.HALF_UP
+                );
+    }
+
+    private BigDecimal calculateMarketShareOpportunityScore(
+            BigDecimal importMarketSizeScore,
+            BigDecimal importGrowthScore,
+            BigDecimal lowTurkeyMarketShareScore,
+            BigDecimal turkeyExportPerformanceScore
+    ) {
+        BigDecimal weightedScoreSum = BigDecimal.ZERO;
+        BigDecimal availableWeightSum = BigDecimal.ZERO;
+
+        BigDecimal marketSizeWeight = new BigDecimal("0.30");
+        BigDecimal growthWeight = new BigDecimal("0.30");
+        BigDecimal lowShareWeight = new BigDecimal("0.25");
+        BigDecimal turkeyPerformanceWeight = new BigDecimal("0.15");
+
+        if (importMarketSizeScore != null) {
+            weightedScoreSum = weightedScoreSum.add(
+                    importMarketSizeScore.multiply(marketSizeWeight)
+            );
+            availableWeightSum = availableWeightSum.add(marketSizeWeight);
+        }
+
+        if (importGrowthScore != null) {
+            weightedScoreSum = weightedScoreSum.add(
+                    importGrowthScore.multiply(growthWeight)
+            );
+            availableWeightSum = availableWeightSum.add(growthWeight);
+        }
+
+        if (lowTurkeyMarketShareScore != null) {
+            weightedScoreSum = weightedScoreSum.add(
+                    lowTurkeyMarketShareScore.multiply(lowShareWeight)
+            );
+            availableWeightSum = availableWeightSum.add(lowShareWeight);
+        }
+
+        if (turkeyExportPerformanceScore != null) {
+            weightedScoreSum = weightedScoreSum.add(
+                    turkeyExportPerformanceScore.multiply(
+                            turkeyPerformanceWeight
+                    )
+            );
+            availableWeightSum = availableWeightSum.add(
+                    turkeyPerformanceWeight
+            );
+        }
+
+        if (availableWeightSum.compareTo(BigDecimal.ZERO) <= 0) {
+            return null;
+        }
+
+        return weightedScoreSum
+                .divide(
+                        availableWeightSum,
+                        CALCULATION_SCALE,
+                        RoundingMode.HALF_UP
+                )
+                .max(BigDecimal.ZERO)
+                .min(MAX_SCORE)
                 .setScale(
                         SCORE_SCALE,
                         RoundingMode.HALF_UP
@@ -961,6 +1357,39 @@ public class AnalysisCountryResultGenerator {
                 );
     }
 
+    private BigDecimal normalizeMinMaxScore(
+            BigDecimal value,
+            BigDecimal minimumValue,
+            BigDecimal maximumValue
+    ) {
+        if (
+                value == null
+                        || minimumValue == null
+                        || maximumValue == null
+        ) {
+            return null;
+        }
+
+        if (maximumValue.compareTo(minimumValue) == 0) {
+            return new BigDecimal("50.00");
+        }
+
+        return value
+                .subtract(minimumValue)
+                .divide(
+                        maximumValue.subtract(minimumValue),
+                        CALCULATION_SCALE,
+                        RoundingMode.HALF_UP
+                )
+                .multiply(MAX_SCORE)
+                .max(BigDecimal.ZERO)
+                .min(MAX_SCORE)
+                .setScale(
+                        SCORE_SCALE,
+                        RoundingMode.HALF_UP
+                );
+    }
+
     private BigDecimal calculateDataCompleteness(
             Analysis analysis,
             TradeMetrics metrics
@@ -1006,7 +1435,13 @@ public class AnalysisCountryResultGenerator {
 
             BigDecimal turkeyMarketSharePercent,
 
-            MacroeconomicRawMetrics macroeconomicRawMetrics
+            CompetitiveAccessibilityMetrics
+                    competitiveAccessibilityMetrics,
+
+            MacroeconomicRawMetrics macroeconomicRawMetrics,
+
+            CurrencyStabilityRawMetrics
+                    currencyStabilityRawMetrics
 
     ) {
     }
@@ -1021,6 +1456,9 @@ public class AnalysisCountryResultGenerator {
 
             BigDecimal turkeyMarketSharePercent,
 
+            CompetitiveAccessibilityMetrics
+                    competitiveAccessibilityMetrics,
+
             BigDecimal importMarketSizeScore,
 
             BigDecimal importGrowthScore,
@@ -1029,7 +1467,15 @@ public class AnalysisCountryResultGenerator {
 
             BigDecimal marketShareOpportunityScore,
 
+            BigDecimal competitiveAccessibilityScore,
+
             BigDecimal macroeconomicStabilityScore,
+
+            BigDecimal currencyStabilityScore,
+
+            LogisticsSuitabilityMetrics logisticsSuitabilityMetrics,
+
+            TariffSuitabilityMetrics tariffSuitabilityMetrics,
 
             BigDecimal economicDataCompleteness,
 

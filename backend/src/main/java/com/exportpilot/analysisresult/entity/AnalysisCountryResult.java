@@ -105,6 +105,54 @@ public class AnalysisCountryResult {
     )
     private BigDecimal competitiveAccessibilityScore;
 
+    @Column(name = "supplier_count")
+    private Integer supplierCount;
+
+    @Column(
+            name = "supplier_concentration_hhi",
+            precision = 12,
+            scale = 2
+    )
+    private BigDecimal supplierConcentrationHhi;
+
+    @Column(name = "turkey_supplier_rank")
+    private Integer turkeySupplierRank;
+
+    @Column(
+            name = "turkey_market_share_percent",
+            precision = 12,
+            scale = 4
+    )
+    private BigDecimal turkeyMarketSharePercent;
+
+    @Column(
+            name = "leader_market_share_percent",
+            precision = 12,
+            scale = 4
+    )
+    private BigDecimal leaderMarketSharePercent;
+
+    @Column(
+            name = "distance_to_leader_percent",
+            precision = 12,
+            scale = 4
+    )
+    private BigDecimal distanceToLeaderPercent;
+
+    @Column(
+            name = "turkey_unit_value_usd_per_kg",
+            precision = 20,
+            scale = 4
+    )
+    private BigDecimal turkeyUnitValueUsdPerKg;
+
+    @Column(
+            name = "market_average_unit_value_usd_per_kg",
+            precision = 20,
+            scale = 4
+    )
+    private BigDecimal marketAverageUnitValueUsdPerKg;
+
     @Column(
             name = "macroeconomic_stability_score",
             precision = 5,
@@ -198,9 +246,7 @@ public class AnalysisCountryResult {
     )
     private BigDecimal cagrPercent;
 
-    @Column(
-            name = "calculated_at"
-    )
+    @Column(name = "calculated_at")
     private OffsetDateTime calculatedAt;
 
     @Column(
