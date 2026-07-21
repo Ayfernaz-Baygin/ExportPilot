@@ -1,12 +1,16 @@
 package com.exportpilot.analysisresult.controller;
 
 import com.exportpilot.analysisresult.ai.AiMarketReport;
+import com.exportpilot.analysisresult.ai.AiMarketReportPdfService;
 import com.exportpilot.analysisresult.ai.AiMarketReportService;
 import com.exportpilot.analysisresult.dto.AnalysisCountryResultResponse;
 import com.exportpilot.analysisresult.interpretation.CountryAnalysisInterpretation;
 import com.exportpilot.analysisresult.service.AnalysisCountryResultService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,13 +30,16 @@ public class AnalysisCountryResultController {
 
     private final AnalysisCountryResultService resultService;
     private final AiMarketReportService aiMarketReportService;
+    private final AiMarketReportPdfService aiMarketReportPdfService;
 
     public AnalysisCountryResultController(
             AnalysisCountryResultService resultService,
-            AiMarketReportService aiMarketReportService
+            AiMarketReportService aiMarketReportService,
+            AiMarketReportPdfService aiMarketReportPdfService
     ) {
         this.resultService = resultService;
         this.aiMarketReportService = aiMarketReportService;
+        this.aiMarketReportPdfService = aiMarketReportPdfService;
     }
 
     @Operation(
@@ -144,5 +151,53 @@ public class AnalysisCountryResultController {
                         countryId
                 )
         );
+    }
+
+    @Operation(
+            summary = "Download AI market report as PDF",
+            description = """
+                    Creates a PDF document from the stored AI market report
+                    and returns it as a downloadable file.
+                    """
+    )
+    @GetMapping("/analysis/{analysisId}/ai-report/pdf")
+    public ResponseEntity<?> downloadAiMarketReportPdf(
+            @PathVariable Long analysisId
+    ) {
+        try {
+            byte[] pdf =
+                    aiMarketReportPdfService.generatePdf(analysisId);
+
+            String fileName =
+                    "exportpilot-analysis-"
+                            + analysisId
+                            + "-report.pdf";
+
+            ContentDisposition contentDisposition =
+                    ContentDisposition
+                            .attachment()
+                            .filename(fileName)
+                            .build();
+
+            return ResponseEntity.ok()
+                    .contentType(MediaType.APPLICATION_PDF)
+                    .header(
+                            HttpHeaders.CONTENT_DISPOSITION,
+                            contentDisposition.toString()
+                    )
+                    .contentLength(pdf.length)
+                    .body(pdf);
+
+        } catch (Exception exception) {
+            exception.printStackTrace();
+
+            return ResponseEntity
+                    .internalServerError()
+                    .contentType(MediaType.TEXT_PLAIN)
+                    .body(
+                            "PDF oluşturulamadı: "
+                                    + exception.getMessage()
+                    );
+        }
     }
 }
