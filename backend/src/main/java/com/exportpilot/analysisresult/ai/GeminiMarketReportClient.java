@@ -36,7 +36,33 @@ public class GeminiMarketReportClient {
     }
 
     public String generateReport(String prompt) {
+        return generateText(
+                prompt,
+                0.3,
+                maxOutputTokens
+        );
+    }
+
+    public String generateChatAnswer(String prompt) {
+        return generateText(
+                prompt,
+                0.2,
+                500
+        );
+    }
+
+    private String generateText(
+            String prompt,
+            double temperature,
+            int outputTokenLimit
+    ) {
         validateApiKey();
+
+        if (prompt == null || prompt.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Gemini prompt bos olamaz."
+            );
+        }
 
         Map<String, Object> requestBody = Map.of(
                 "contents", List.of(
@@ -48,8 +74,8 @@ public class GeminiMarketReportClient {
                         )
                 ),
                 "generationConfig", Map.of(
-                        "temperature", 0.3,
-                        "maxOutputTokens", maxOutputTokens
+                        "temperature", temperature,
+                        "maxOutputTokens", outputTokenLimit
                 )
         );
 
@@ -96,7 +122,7 @@ public class GeminiMarketReportClient {
 
             if (!textNode.isTextual() || textNode.asText().isBlank()) {
                 throw new IllegalStateException(
-                        "Gemini API cevabinda rapor metni bulunamadi."
+                        "Gemini API cevabinda metin bulunamadi."
                 );
             }
 
