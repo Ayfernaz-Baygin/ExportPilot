@@ -1,5 +1,7 @@
 package com.exportpilot.analysisresult.controller;
 
+import com.exportpilot.analysisresult.ai.AiMarketReport;
+import com.exportpilot.analysisresult.ai.AiMarketReportService;
 import com.exportpilot.analysisresult.dto.AnalysisCountryResultResponse;
 import com.exportpilot.analysisresult.interpretation.CountryAnalysisInterpretation;
 import com.exportpilot.analysisresult.service.AnalysisCountryResultService;
@@ -8,11 +10,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import com.exportpilot.analysisresult.ai.AiMarketReport;
-import com.exportpilot.analysisresult.ai.AiMarketReportService;
 
 import java.util.List;
 
@@ -25,17 +25,15 @@ import java.util.List;
 public class AnalysisCountryResultController {
 
     private final AnalysisCountryResultService resultService;
-
-
     private final AiMarketReportService aiMarketReportService;
 
     public AnalysisCountryResultController(
-        AnalysisCountryResultService resultService,
-        AiMarketReportService aiMarketReportService
-) {
-    this.resultService = resultService;
-    this.aiMarketReportService = aiMarketReportService;
-}
+            AnalysisCountryResultService resultService,
+            AiMarketReportService aiMarketReportService
+    ) {
+        this.resultService = resultService;
+        this.aiMarketReportService = aiMarketReportService;
+    }
 
     @Operation(
             summary = "List results by analysis",
@@ -82,37 +80,53 @@ public class AnalysisCountryResultController {
     }
 
     @Operation(
-        summary = "Generate AI market report",
-        description = """
-                Generates a professional AI-supported market report
-                using deterministic country analysis results.
-                """
-)
-@GetMapping("/analysis/{analysisId}/ai-report")
-public ResponseEntity<AiMarketReport> generateAiMarketReport(
-        @PathVariable Long analysisId
-) {
-    return ResponseEntity.ok(
-            aiMarketReportService.generateReport(analysisId)
-    );
-}
+            summary = "Generate or get AI market report",
+            description = """
+                    Returns the stored AI market report for an analysis.
+                    If no report exists, generates one with Gemini and stores it.
+                    """
+    )
+    @GetMapping("/analysis/{analysisId}/ai-report")
+    public ResponseEntity<AiMarketReport> generateAiMarketReport(
+            @PathVariable Long analysisId
+    ) {
+        return ResponseEntity.ok(
+                aiMarketReportService.generateReport(analysisId)
+        );
+    }
 
     @Operation(
-        summary = "List interpretations by analysis",
-        description = """
-                Returns interpretations for all country results
-                within an analysis, ordered by rank.
-                """
-)
-@GetMapping("/analysis/{analysisId}/interpretations")
-public ResponseEntity<List<CountryAnalysisInterpretation>>
-getInterpretationsByAnalysisId(
-        @PathVariable Long analysisId
-) {
-    return ResponseEntity.ok(
-            resultService.getInterpretationsByAnalysisId(analysisId)
-    );
-}
+            summary = "Regenerate AI market report",
+            description = """
+                    Generates a new AI market report with Gemini
+                    and updates the stored report for the analysis.
+                    """
+    )
+    @PostMapping("/analysis/{analysisId}/ai-report/regenerate")
+    public ResponseEntity<AiMarketReport> regenerateAiMarketReport(
+            @PathVariable Long analysisId
+    ) {
+        return ResponseEntity.ok(
+                aiMarketReportService.regenerateReport(analysisId)
+        );
+    }
+
+    @Operation(
+            summary = "List interpretations by analysis",
+            description = """
+                    Returns interpretations for all country results
+                    within an analysis, ordered by rank.
+                    """
+    )
+    @GetMapping("/analysis/{analysisId}/interpretations")
+    public ResponseEntity<List<CountryAnalysisInterpretation>>
+    getInterpretationsByAnalysisId(
+            @PathVariable Long analysisId
+    ) {
+        return ResponseEntity.ok(
+                resultService.getInterpretationsByAnalysisId(analysisId)
+        );
+    }
 
     @Operation(
             summary = "Get analysis result by country",

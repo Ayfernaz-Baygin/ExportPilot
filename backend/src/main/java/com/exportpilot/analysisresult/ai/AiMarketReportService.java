@@ -3,6 +3,7 @@ package com.exportpilot.analysisresult.ai;
 import com.exportpilot.analysisresult.interpretation.CountryAnalysisInterpretation;
 import com.exportpilot.analysisresult.service.AnalysisCountryResultService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -11,16 +12,74 @@ public class AiMarketReportService {
 
     private final AnalysisCountryResultService resultService;
     private final GeminiMarketReportClient geminiClient;
+    private final AiMarketReportRepository reportRepository;
 
     public AiMarketReportService(
             AnalysisCountryResultService resultService,
-            GeminiMarketReportClient geminiClient
+            GeminiMarketReportClient geminiClient,
+            AiMarketReportRepository reportRepository
     ) {
         this.resultService = resultService;
         this.geminiClient = geminiClient;
+        this.reportRepository = reportRepository;
     }
 
+    @Transactional
     public AiMarketReport generateReport(Long analysisId) {
+        return reportRepository.findByAnalysisId(analysisId)
+                .map(this::toResponse)
+                .orElseGet(() -> createAndSaveReport(analysisId));
+    }
+
+    @Transactional
+    public AiMarketReport regenerateReport(Long analysisId) {
+        List<CountryAnalysisInterpretation> interpretations =
+                getInterpretations(analysisId);
+
+        String prompt = buildPrompt(analysisId, interpretations);
+        String reportText = geminiClient.generateReport(prompt);
+
+        AiMarketReportEntity entity = reportRepository
+                .findByAnalysisId(analysisId)
+                .orElseGet(() -> new AiMarketReportEntity(
+                        analysisId,
+                        geminiClient.getModel(),
+                        reportText
+                ));
+
+        entity.updateReport(
+                geminiClient.getModel(),
+                reportText
+        );
+
+        AiMarketReportEntity savedEntity =
+                reportRepository.save(entity);
+
+        return toResponse(savedEntity);
+    }
+
+    private AiMarketReport createAndSaveReport(Long analysisId) {
+        List<CountryAnalysisInterpretation> interpretations =
+                getInterpretations(analysisId);
+
+        String prompt = buildPrompt(analysisId, interpretations);
+        String reportText = geminiClient.generateReport(prompt);
+
+        AiMarketReportEntity entity = new AiMarketReportEntity(
+                analysisId,
+                geminiClient.getModel(),
+                reportText
+        );
+
+        AiMarketReportEntity savedEntity =
+                reportRepository.save(entity);
+
+        return toResponse(savedEntity);
+    }
+
+    private List<CountryAnalysisInterpretation> getInterpretations(
+            Long analysisId
+    ) {
         List<CountryAnalysisInterpretation> interpretations =
                 resultService.getInterpretationsByAnalysisId(analysisId);
 
@@ -30,14 +89,16 @@ public class AiMarketReportService {
             );
         }
 
-        String prompt = buildPrompt(analysisId, interpretations);
+        return interpretations;
+    }
 
-        String report = geminiClient.generateReport(prompt);
-
+    private AiMarketReport toResponse(
+            AiMarketReportEntity entity
+    ) {
         return new AiMarketReport(
-                analysisId,
-                geminiClient.getModel(),
-                report
+                entity.getAnalysisId(),
+                entity.getModel(),
+                entity.getReport()
         );
     }
 
