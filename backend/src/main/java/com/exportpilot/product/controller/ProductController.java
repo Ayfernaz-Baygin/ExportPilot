@@ -3,6 +3,7 @@ package com.exportpilot.product.controller;
 import com.exportpilot.product.dto.ProductResponse;
 import com.exportpilot.product.service.ProductService;
 import com.exportpilot.productcode.dto.ProductCodeResponse;
+import com.exportpilot.productcode.entity.ProductCodeType;
 import com.exportpilot.productcode.service.ProductCodeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -10,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -35,18 +37,40 @@ public class ProductController {
 
     @Operation(
             summary = "List active products",
-            description = "Returns all active products ordered alphabetically."
+            description = "Returns all active products "
+                    + "ordered alphabetically."
     )
     @GetMapping
-    public ResponseEntity<List<ProductResponse>> getActiveProducts() {
+    public ResponseEntity<List<ProductResponse>>
+    getActiveProducts() {
+
         return ResponseEntity.ok(
                 productService.getActiveProducts()
         );
     }
 
     @Operation(
+            summary = "Search products",
+            description = "Searches active products by name. "
+                    + "Can be used for autocomplete."
+    )
+    @GetMapping("/search")
+    public ResponseEntity<List<ProductResponse>> searchProducts(
+            @RequestParam String query,
+            @RequestParam(required = false) Integer limit
+    ) {
+        return ResponseEntity.ok(
+                productService.searchProducts(
+                        query,
+                        limit
+                )
+        );
+    }
+
+    @Operation(
             summary = "Get product by ID",
-            description = "Returns the product matching the specified identifier."
+            description = "Returns the active product matching "
+                    + "the specified identifier."
     )
     @GetMapping("/{id}")
     public ResponseEntity<ProductResponse> getProductById(
@@ -59,14 +83,28 @@ public class ProductController {
 
     @Operation(
             summary = "List product codes",
-            description = "Returns active HS and GTIP codes linked to the product."
+            description = "Returns active HS and GTIP codes "
+                    + "linked to the product. Results can be "
+                    + "filtered by code type and "
+                    + "classification level."
     )
     @GetMapping("/{id}/codes")
-    public ResponseEntity<List<ProductCodeResponse>> getProductCodes(
-            @PathVariable Long id
+    public ResponseEntity<List<ProductCodeResponse>>
+    getProductCodes(
+            @PathVariable Long id,
+
+            @RequestParam(required = false)
+            ProductCodeType codeType,
+
+            @RequestParam(required = false)
+            Short classificationLevel
     ) {
         return ResponseEntity.ok(
-                productCodeService.getCodesByProductId(id)
+                productCodeService.getCodesByProductId(
+                        id,
+                        codeType,
+                        classificationLevel
+                )
         );
     }
 }

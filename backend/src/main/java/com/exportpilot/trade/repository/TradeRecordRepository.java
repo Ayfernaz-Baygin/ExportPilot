@@ -66,4 +66,12 @@ public interface TradeRecordRepository
             Integer startYear,
             Integer endYear
     );
+
+    boolean existsBySourceRecordId(String sourceRecordId);
+
+    boolean existsBySourceAndSourceRecordId(
+        String source,
+        String sourceRecordId
+);
 }
+

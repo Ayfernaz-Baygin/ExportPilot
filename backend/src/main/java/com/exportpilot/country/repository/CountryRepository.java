@@ -15,6 +15,8 @@ public interface CountryRepository
 
     Optional<Country> findByIso3CodeIgnoreCase(String iso3Code);
 
+    Optional<Country> findByUnM49Code(Integer unM49Code);
+
     List<Country> findAllByRegionIgnoreCaseAndActiveTrueOrderByNameAsc(
             String region
     );

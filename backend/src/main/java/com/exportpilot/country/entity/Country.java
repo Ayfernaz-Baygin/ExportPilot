@@ -45,6 +45,12 @@ public class Country {
     private String iso3Code;
 
     @Column(
+            name = "un_m49_code",
+            unique = true
+    )
+    private Integer unM49Code;
+
+    @Column(
             name = "name",
             nullable = false,
             length = 120
